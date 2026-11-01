@@ -1,0 +1,34 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE SCHEMA IF NOT EXISTS identity;
+CREATE SCHEMA IF NOT EXISTS security;
+CREATE SCHEMA IF NOT EXISTS geography;
+CREATE SCHEMA IF NOT EXISTS event;
+CREATE SCHEMA IF NOT EXISTS planning;
+CREATE SCHEMA IF NOT EXISTS vendor;
+CREATE SCHEMA IF NOT EXISTS marketplace;
+CREATE SCHEMA IF NOT EXISTS quotation;
+CREATE SCHEMA IF NOT EXISTS audit;
+CREATE SCHEMA IF NOT EXISTS notification;
+CREATE SCHEMA IF NOT EXISTS administration;
+
+CREATE OR REPLACE FUNCTION audit.set_last_updated()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.last_updated := clock_timestamp();
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION audit.prevent_mutation_of_sent_quote()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.status IN ('SENT','ACCEPTED','DECLINED','EXPIRED','SUPERSEDED') THEN
+    RAISE EXCEPTION 'Sent/final quotations are immutable; create a new version';
+  END IF;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
